@@ -1,0 +1,195 @@
+package org.jenkinsci.plugins.fluentd;
+
+import hudson.Extension;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.AbstractProject;
+import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.tasks.*;
+import jenkins.tasks.SimpleBuildStep;
+import net.sf.json.JSONObject;
+import org.fluentd.logger.FluentLogger;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
+
+import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.jenkinsci.plugins.fluentd.FluentHelper.sendJson;
+
+public class Fluentd extends Recorder implements SimpleBuildStep {
+    public static final String DEFAULT_LOGGER = "Jenkins";
+    public static final String DEFAULT_HOST = "localhost";
+    public static final int DEFAULT_PORT = 24224;
+
+    private static transient volatile FluentLogger fluentLogger;
+    private final String tag;
+    private final String json;
+    private final String fileName;
+    private final boolean failBuild;
+
+    @DataBoundConstructor
+    public Fluentd(String tag, boolean failBuild, String fileName, String json) {
+        this.tag = tag;
+        this.failBuild = failBuild;
+        this.fileName = fileName;
+        this.json = json;
+    }
+
+    @SuppressWarnings("unused")
+    public String getTag() {
+        return tag;
+    }
+
+    @SuppressWarnings("unused")
+    public String getFileName() {
+        return fileName;
+    }
+
+    @SuppressWarnings("unused")
+    public String getJson() {
+        return json;
+    }
+
+    @SuppressWarnings("unused")
+    public boolean isFailBuild() {
+        return failBuild;
+    }
+
+    @Override
+    public void perform(@Nonnull Run<?, ?> build, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws IOException, InterruptedException {
+        final Map<String, String> envVars = getEnvVariables(build, listener);
+
+        boolean succeed = false;
+
+        if (fileName != null && !fileName.isEmpty()) {
+            final FilePath file = new FilePath(workspace, fileName);
+            if (file.exists()) {
+                try {
+                    sendJson(getFluentLogger(), tag, envVars, json, file.readToString(), build.getStartTimeInMillis());
+                    succeed = true;
+                } catch (IllegalArgumentException e) {
+                    listener.error(e.getMessage());
+                    e.printStackTrace(listener.getLogger());
+                }
+            } else {
+                listener.error("File doesn't exist: " + fileName);
+            }
+        }
+
+        if (!succeed && failBuild) {
+            build.setResult(Result.FAILURE);
+        }
+    }
+
+    private Map<String, String> getEnvVariables(@Nonnull Run<?, ?> build, @Nonnull TaskListener listener) {
+        Map<String, String> envVars;
+        try {
+            envVars = build.getEnvironment(listener);
+        } catch (IOException | InterruptedException e) {
+            listener.error("Failed to get environment variables");
+            e.printStackTrace(listener.getLogger());
+            envVars = new HashMap<>();
+        }
+        return envVars;
+    }
+
+    private FluentLogger getFluentLogger() {
+        if (fluentLogger == null) {
+            synchronized (Fluentd.class) {
+                if (fluentLogger == null) {
+                    final DescriptorImpl desc = getDescriptor();
+                    fluentLogger = FluentLogger.getLogger(desc.getLoggerName(), desc.getHost(), getDescriptor().getPort());
+                }
+            }
+        }
+        return fluentLogger;
+    }
+
+    // Overridden for better type safety.
+    // If your plugin doesn't really define any property on Descriptor,
+    // you don't have to do this.
+    @Override
+    public DescriptorImpl getDescriptor() {
+        return (DescriptorImpl) super.getDescriptor();
+    }
+
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return BuildStepMonitor.NONE;
+    }
+
+    /**
+     * Descriptor for {@link Fluentd}. Used as a singleton.
+     * The class is marked as public so that it can be accessed from views.
+     * <p>
+     * <p>
+     * See <tt>src/main/resources/hudson/plugins/hello_world/Fluentd/*.jelly</tt>
+     * for the actual HTML fragment for the configuration screen.
+     */
+    @Extension
+    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
+        /**
+         * To persist global configuration information,
+         * simply store it in a field and call save().
+         * <p>
+         * <p>
+         * If you don't want fields to be persisted, use <tt>transient</tt>.
+         */
+        private String loggerName;
+        private String host;
+        private int port;
+
+        /**
+         * In order to load the persisted global configuration, you have to
+         * call load() in the constructor.
+         */
+        public DescriptorImpl() {
+            load();
+            if (port == 0) port = DEFAULT_PORT;
+            if (host == null || host.isEmpty()) host = DEFAULT_HOST;
+            if (loggerName == null || loggerName.isEmpty()) loggerName = DEFAULT_LOGGER;
+        }
+
+        @Override
+        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
+            // Indicates that this builder can be used with all kinds of project types 
+            return true;
+        }
+
+        /**
+         * This human readable name is used in the configuration screen.
+         */
+        @Override
+        public String getDisplayName() {
+            return "Send to Fluentd";
+        }
+
+        @Override
+        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+            loggerName = formData.optString("loggerName", DEFAULT_LOGGER);
+            port = formData.optInt("port", DEFAULT_PORT);
+            host = formData.optString("host", DEFAULT_HOST);
+            save();
+            fluentLogger = null; // reset logger
+            return super.configure(req, formData);
+        }
+
+        public String getLoggerName() {
+            return loggerName;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public String getHost() {
+            return host;
+        }
+    }
+}
+

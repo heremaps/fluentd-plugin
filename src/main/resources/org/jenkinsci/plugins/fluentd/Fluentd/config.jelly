@@ -1,0 +1,15 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <f:entry title="Tag">
+    <f:textbox field="tag" />
+  </f:entry>
+  <f:entry title="File">
+    <f:textbox field="fileName" />
+  </f:entry>
+  <f:entry title="Extend json">
+    <f:textbox field="json" />
+  </f:entry>
+  <f:entry>
+    <f:checkbox field="failBuild"/><label class="attach-previous">Fail build if sending to fluentd failed</label>
+  </f:entry>
+</j:jelly>
