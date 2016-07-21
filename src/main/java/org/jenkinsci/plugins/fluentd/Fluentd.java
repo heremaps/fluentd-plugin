@@ -62,23 +62,17 @@ public class Fluentd extends Recorder implements SimpleBuildStep {
 
     @Override
     public void perform(@Nonnull Run<?, ?> build, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws IOException, InterruptedException {
-        final Map<String, String> envVars = getEnvVariables(build, listener);
-
         boolean succeed = false;
 
         if (fileName != null && !fileName.isEmpty()) {
             final FilePath file = new FilePath(workspace, fileName);
             if (file.exists()) {
-                try {
-                    sendJson(getFluentLogger(), tag, envVars, json, file.readToString(), build.getStartTimeInMillis());
-                    succeed = true;
-                } catch (IllegalArgumentException e) {
-                    listener.error(e.getMessage());
-                    e.printStackTrace(listener.getLogger());
-                }
+                succeed = send(json, file.readToString(), build, listener);
             } else {
                 listener.error("File doesn't exist: " + fileName);
             }
+        } else {
+            succeed = send(json, "{}", build, listener);
         }
 
         if (!succeed && failBuild) {
@@ -86,11 +80,24 @@ public class Fluentd extends Recorder implements SimpleBuildStep {
         }
     }
 
-    private Map<String, String> getEnvVariables(@Nonnull Run<?, ?> build, @Nonnull TaskListener listener) {
+    private boolean send(String json, String jsonFromFile, @Nonnull Run<?, ?> build, @Nonnull TaskListener listener) throws InterruptedException {
+        final Map<String, String> envVars = getEnvVariables(build, listener);
+
+        try {
+            sendJson(getFluentLogger(), tag, envVars, json, jsonFromFile, build.getStartTimeInMillis());
+            return true;
+        } catch (IllegalArgumentException e) {
+            listener.error(e.getMessage());
+            e.printStackTrace(listener.getLogger());
+            return false;
+        }
+    }
+
+    private Map<String, String> getEnvVariables(@Nonnull Run<?, ?> build, @Nonnull TaskListener listener) throws InterruptedException {
         Map<String, String> envVars;
         try {
             envVars = build.getEnvironment(listener);
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             listener.error("Failed to get environment variables");
             e.printStackTrace(listener.getLogger());
             envVars = new HashMap<>();
