@@ -1,16 +1,16 @@
 package org.jenkinsci.plugins.fluentd;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
 
-/**
- * Created by akbashev on 5/3/2016.
- */
+@SuppressWarnings("unchecked")
 public class JsonHelperTest {
     @Test
     public void fillMapByNulls() throws Exception {
@@ -78,5 +78,25 @@ public class JsonHelperTest {
 
         assertFalse(data.isEmpty());
         assertEquals(expected, data);
+    }
+
+    @Test
+    public void fillMapByJsonArray() throws Exception {
+        final JSONArray jsonArray = new JSONArray();
+        final JSONObject firstElement = new JSONObject();
+        firstElement.put("key5", "value5");
+        final JSONObject secondElement = new JSONObject();
+        secondElement.put("key6", "value6");
+        jsonArray.add(firstElement);
+        jsonArray.add(secondElement);
+        final JSONObject extension = new JSONObject();
+        extension.put("key7", "value7");
+
+        final List<Map<String, Object>> data = JsonHelper.fillMap(jsonArray, extension);
+
+        assertEquals(data.get(0).get("key5"), "value5");
+        assertEquals(data.get(0).get("key7"), "value7");
+        assertEquals(data.get(1).get("key6"), "value6");
+        assertEquals(data.get(1).get("key7"), "value7");
     }
 }
