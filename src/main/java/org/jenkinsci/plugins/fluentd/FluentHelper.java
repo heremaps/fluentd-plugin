@@ -15,6 +15,18 @@ import static org.jenkinsci.plugins.fluentd.JsonHelper.fillMap;
 public class FluentHelper {
     private static final Logger LOGGER = Logger.getLogger(Fluentd.class.getName());
 
+    /**
+     *
+     * Extends original json and sends it to {@link FluentLogger}
+     *
+     * @param fluentLogger logger for publishing data
+     * @param tag fluentd tag
+     * @param envVars environment variables
+     * @param jsonFromExtension json that would be used as extension
+     * @param jsonFromFile json that would be extend
+     * @param startTimeInMillis job start time in milliseconds
+     * @throws IllegalArgumentException
+     */
     static void sendJson(FluentLogger fluentLogger, String tag, Map<String, String> envVars, String jsonFromExtension,
                          String jsonFromFile, long startTimeInMillis) throws IllegalArgumentException {
         final JSONObject extension;

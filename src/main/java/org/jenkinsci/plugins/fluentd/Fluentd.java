@@ -21,6 +21,13 @@ import java.util.Map;
 
 import static org.jenkinsci.plugins.fluentd.FluentHelper.sendJson;
 
+/**
+ *
+ * {@link Fluentd} build step publishes json data to <a href="https://www.fluentd.org">FluentD</a> agent.
+ *
+ * @author Alexander Akbashev
+ */
+@SuppressWarnings("WeakerAccess")
 public class Fluentd extends Recorder implements SimpleBuildStep {
     public static final String DEFAULT_LOGGER = "Jenkins";
     public static final String DEFAULT_HOST = "localhost";
@@ -64,6 +71,7 @@ public class Fluentd extends Recorder implements SimpleBuildStep {
     public void perform(@Nonnull Run<?, ?> build, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws IOException, InterruptedException {
         boolean succeed = false;
 
+        // TODO: Publish from slave if it's possible
         if (fileName != null && !fileName.isEmpty()) {
             final FilePath file = new FilePath(workspace, fileName);
             if (file.exists()) {
@@ -117,9 +125,6 @@ public class Fluentd extends Recorder implements SimpleBuildStep {
         return fluentLogger;
     }
 
-    // Overridden for better type safety.
-    // If your plugin doesn't really define any property on Descriptor,
-    // you don't have to do this.
     @Override
     public DescriptorImpl getDescriptor() {
         return (DescriptorImpl) super.getDescriptor();
