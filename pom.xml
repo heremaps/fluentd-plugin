@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>2.3</version>
+    <version>2.11</version>
     <relativePath/>
   </parent>
   <groupId>org.jenkins-ci.plugins</groupId>
@@ -25,7 +25,7 @@
   </properties>
 
   <name>Fluentd Plugin</name>
-  <description>TODO</description>
+  <description>A Jenkins plugin which allows to publish JSON data directly to Fluentd</description>
   <url>https://wiki.jenkins-ci.org/display/JENKINS/TODO+Plugin</url>
 
   <licenses>
